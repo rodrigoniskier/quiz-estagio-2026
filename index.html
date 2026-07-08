@@ -421,7 +421,38 @@
       font-size: 0.92rem;
       padding: 20px;
     }
+.timer-box {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #f0dda2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
+.timer-box span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.timer-box strong {
+  color: var(--primary-dark);
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.timer-box.low-time {
+  background: #fff0ee;
+  border-color: #f2b8b5;
+}
+
+.timer-box.low-time strong {
+  color: var(--danger);
+}
     @media (max-width: 860px) {
       .dashboard { grid-template-columns: 1fr; }
       .info-grid { grid-template-columns: 1fr; }
@@ -468,6 +499,10 @@
       <aside class="status-card">
         <h2>Status</h2>
         <p id="attemptStatus">Primeira tentativa em andamento.</p>
+        <div class="timer-box" id="timerBox">
+  <span>Tempo restante</span>
+  <strong id="timerDisplay">60:00</strong>
+</div>
         <div class="progress-line" aria-label="Progresso de respostas">
           <div class="progress-bar" id="progressBar"></div>
         </div>
@@ -872,7 +907,84 @@
     let attempt = 1;
     let firstAnswers = {};
     let finished = false;
+const ATTEMPT_TIME_SECONDS = 60 * 60;
 
+let timerInterval = null;
+let remainingSeconds = ATTEMPT_TIME_SECONDS;
+
+const timerDisplay = document.getElementById("timerDisplay");
+const timerBox = document.getElementById("timerBox");
+
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function updateTimerDisplay() {
+  if (!timerDisplay) return;
+
+  timerDisplay.textContent = formatTime(remainingSeconds);
+
+  if (timerBox) {
+    timerBox.classList.toggle("low-time", remainingSeconds <= 5 * 60);
+  }
+}
+
+function startAttemptTimer() {
+  clearInterval(timerInterval);
+
+  remainingSeconds = ATTEMPT_TIME_SECONDS;
+  updateTimerDisplay();
+
+  timerInterval = setInterval(() => {
+    if (finished) {
+      clearInterval(timerInterval);
+      return;
+    }
+
+    remainingSeconds--;
+    updateTimerDisplay();
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      submitAttemptByTimeout();
+    }
+  }, 1000);
+}
+
+function submitAttemptByTimeout() {
+  const answers = getAnswers();
+  const score = calculateScore(answers);
+
+  if (attempt === 1) {
+    if (score.grade < 10) {
+      startSecondAttempt(answers, score);
+    } else {
+      finished = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Teste finalizado";
+      document.querySelectorAll("input").forEach(input => input.disabled = true);
+
+      showResult(`
+        <h2>Tempo encerrado</h2>
+        <div class="score">Nota: ${formatGrade(score.grade)} / 10</div>
+        <p>A primeira tentativa foi enviada automaticamente porque o tempo terminou. Você atingiu nota máxima, então o teste foi finalizado.</p>
+      `, "final");
+
+      updateProgress();
+    }
+  } else {
+    finishQuiz(answers, score);
+
+    showResult(`
+      <h2>Tempo encerrado</h2>
+      <div class="score">Nota: ${formatGrade(score.grade)} / 10</div>
+      <p>A segunda tentativa foi enviada automaticamente porque o tempo terminou. O gabarito oficial com comentários foi liberado abaixo.</p>
+    `, "final");
+  }
+}
     function optionLetter(index) {
       return String.fromCharCode(65 + index);
     }
@@ -993,6 +1105,7 @@
       attempt = 2;
       submitBtn.textContent = "Enviar segunda tentativa";
       renderQuestions();
+      startAttemptTimer();
 
       showResult(`
         <h2>Primeira tentativa enviada</h2>
@@ -1119,10 +1232,12 @@
       submitBtn.disabled = false;
       submitBtn.textContent = "Enviar primeira tentativa";
       renderQuestions();
+      startAttemptTimer();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     renderQuestions();
+    startAttemptTimer();
   </script>
 </body>
 </html>
