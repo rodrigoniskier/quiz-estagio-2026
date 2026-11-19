@@ -13,7 +13,7 @@ laboratório.
 
 **Tecnologias.** HTML, CSS, JavaScript.
 
-**Qualidade e evidências.** Arquivo único, sem dependências e sem backend. Este repositório não tem testes automatizados.
+**Qualidade e evidências.** Arquivo único, sem dependências e sem backend. Este repositório não tem testes automatizados. Licença MIT.
 
 ## Como usar
 
